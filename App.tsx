@@ -14,11 +14,17 @@ import BudgetScreen from './screens/BudgetScreen';
 import ExpenseScreen from './screens/ExpenseScreen';
 import IncomeScreen from './screens/IncomeScreen';
 import TransferScreen from './screens/TransferScreen';
+import store from './redux/Store';
+import { Provider } from 'react-redux';
+import Toast from 'react-native-toast-message';
+import DashBoardScreen from './screens/DashBoardScreen';
 
 const Stack = createNativeStackNavigator();
 
 const App = () => {
   return (
+      <Provider store={store}>
+            
     <GestureHandlerRootView style={{ flex: 1 }}> {/* Wrap your NavigationContainer */}
       <NavigationContainer>
         <Stack.Navigator 
@@ -39,9 +45,12 @@ const App = () => {
           <Stack.Screen name="Expense" component={ExpenseScreen} />
           <Stack.Screen name="Income" component={IncomeScreen} />
           <Stack.Screen name="Transfer" component={TransferScreen} />
+          <Stack.Screen name="DashBoard" component={DashBoardScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </GestureHandlerRootView>
+      <Toast />
+    </Provider>
   );
 };
 
