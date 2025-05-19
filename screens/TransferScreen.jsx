@@ -19,8 +19,8 @@ const TransferScreen = ({ navigation }) => {
   const accounts = useSelector(state => state.categories.accounts);
 
   const [amount, setAmount] = useState('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const [from, setFrom] = useState(null);
+  const [to, setTo] = useState(null);
   const [description, setDescription] = useState('');
 
   const [showFromDropdown, setShowFromDropdown] = useState(false);
@@ -54,23 +54,52 @@ const TransferScreen = ({ navigation }) => {
       return;
     }
 
+    if (from === to) {
+      Toast.show({
+        type: 'error',
+        text1: 'Invalid Transfer',
+        text2: 'From and To accounts cannot be the same.',
+      });
+      return;
+    }
+
+    const fromAccountName =
+      from.type === 'Bank'
+        ? `${from.bankName} (${from.accountNumber})`
+        : `${from.cashName} (${from.cashNameNo})`;
+
+    const toAccountName =
+      to.type === 'Bank'
+        ? `${to.bankName} (${to.accountNumber})`
+        : `${to.cashName} (${to.cashNameNo})`;
+
     const newTransaction = {
       id: Date.now(),
       amount: parseFloat(amount),
-      from,
-      to,
+      fromAccount: from,
+      toAccount: to,
+      fromAccountName,
+      toAccountName,
       description: description?.trim() || 'No description',
       date: new Date().toISOString(),
+      type: 'transfer',
     };
 
+    console.log('===== Adding Transaction =====');
+    console.log('Transaction Data:', newTransaction);
+    console.log('============================');
+
     dispatch(addTransaction(newTransaction));
+    Toast.show({
+      type: 'success',
+      text1: 'Transaction added successfully',
+    });
     navigation.navigate('Home');
   };
 
-  // Helper function to get the display name for an account
   const getAccountLabel = (item) => {
-    if (item.type === 'Bank') return item.bankName;
-    if (item.type === 'Cash') return item.cashName;
+    if (item.type === 'Bank') return `${item.bankName} (${item.accountNumber})`;
+    if (item.type === 'Cash') return `${item.cashName} (${item.cashNameNo})`;
     return '';
   };
 
@@ -112,7 +141,9 @@ const TransferScreen = ({ navigation }) => {
               className="p-4 bg-gray-50 rounded-xl"
               onPress={() => setShowFromDropdown(true)}
             >
-              <Text className="text-gray-600">{from || 'Select account'}</Text>
+              <Text className="text-gray-600">
+                {from ? getAccountLabel(from) : 'Select account'}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -127,7 +158,9 @@ const TransferScreen = ({ navigation }) => {
               className="p-4 bg-gray-50 rounded-xl"
               onPress={() => setShowToDropdown(true)}
             >
-              <Text className="text-gray-600">{to || 'Select account'}</Text>
+              <Text className="text-gray-600">
+                {to ? getAccountLabel(to) : 'Select account'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -170,7 +203,7 @@ const TransferScreen = ({ navigation }) => {
                 <TouchableOpacity
                   key={index}
                   onPress={() => {
-                    setFrom(getAccountLabel(item));
+                    setFrom(item);
                     setShowFromDropdown(false);
                   }}
                 >
@@ -196,7 +229,7 @@ const TransferScreen = ({ navigation }) => {
                 <TouchableOpacity
                   key={index}
                   onPress={() => {
-                    setTo(getAccountLabel(item));
+                    setTo(item);
                     setShowToDropdown(false);
                   }}
                 >

@@ -27,7 +27,7 @@ const ExpenseScreen = ({navigation}) => {
   const [showPartyList, setShowPartyList] = useState(false);
   const [showAccountList, setShowAccountList] = useState(false);
 
-  const handleAddExpense = () => {
+const handleAddExpense = () => {
     if (!amount || isNaN(amount) || Number(amount) <= 0) {
       Toast.show({
         type: 'error',
@@ -55,16 +55,24 @@ const ExpenseScreen = ({navigation}) => {
       return;
     }
 
-    dispatch(
-      addExpense({
-        amount: Number(amount),
-        description: description || 'No description',
-        partyName: selectedParty.name,
-        account: selectedAccount,
-        type: selectedAccount.type.toLowerCase(), // 'bank' or 'cash'
-        date: new Date().toISOString(),
-      }),
-    );
+    const expenseData = {
+      amount: Number(amount),
+      description: description || 'No description',
+      partyName: selectedParty.name,
+      accountName:
+        selectedAccount.type === 'Bank'
+          ? `${selectedAccount.bankName} (${selectedAccount.accountNumber})`
+          : `${selectedAccount.cashName} (${selectedAccount.cashNameNo})`,
+      accountType: selectedAccount.type,
+      type: 'expense',
+      date: new Date().toISOString(),
+    };
+
+    console.log('===== Adding Expense =====');
+    console.log('Expense Data:', expenseData);
+    console.log('==========================');
+
+    dispatch(addExpense(expenseData));
 
     Toast.show({
       type: 'success',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,13 @@ const IncomeScreen = ({ navigation }) => {
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [showPartyList, setShowPartyList] = useState(false);
   const [showAccountList, setShowAccountList] = useState(false);
+
+  useEffect(() => {
+    console.log('===== IncomeScreen Initial Data =====');
+    console.log('Parties:', parties);
+    console.log('Accounts:', accounts);
+    console.log('=====================================');
+  }, [parties, accounts]);
 
   const handleAddIncome = () => {
     if (!amount || isNaN(amount) || Number(amount) <= 0) {
@@ -55,16 +62,24 @@ const IncomeScreen = ({ navigation }) => {
       return;
     }
 
-    dispatch(
-      addIncome({
-        amount: Number(amount),
-        description: description || 'No description',
-        partyName: selectedParty.name,
-        accountName: selectedAccount.name,
-        type: 'income',
-        date: new Date().toISOString(),
-      })
-    );
+    const incomeData = {
+      amount: Number(amount),
+      description: description || 'No description',
+      partyName: selectedParty.name,
+      accountName:
+        selectedAccount.type === 'Bank'
+          ? `${selectedAccount.bankName} (${selectedAccount.accountNumber})`
+          : `${selectedAccount.cashName} (${selectedAccount.cashNameNo})`,
+      accountType: selectedAccount.type,
+      type: 'income',
+      date: new Date().toISOString(),
+    };
+
+    console.log('===== Adding Income =====');
+    console.log('Income Data:', incomeData);
+    console.log('=========================');
+
+    dispatch(addIncome(incomeData));
 
     Toast.show({
       type: 'success',
@@ -102,7 +117,10 @@ const IncomeScreen = ({ navigation }) => {
               <TextInput
                 className="text-white text-5xl flex-1"
                 value={amount}
-                onChangeText={setAmount}
+                onChangeText={text => {
+                  setAmount(text);
+                  console.log('Amount changed:', text);
+                }}
                 keyboardType="numeric"
                 placeholder="0.00"
                 placeholderTextColor="#fff"
@@ -146,12 +164,15 @@ const IncomeScreen = ({ navigation }) => {
                         onPress={() => {
                           setSelectedParty(item);
                           setShowPartyList(false);
-                          console.log(selectedParty)
+                          console.log('Selected Party:', item);
                         }}
                         className={`px-4 py-3 border-b border-gray-200 ${
                           isSelected ? 'bg-purple-200' : 'bg-white'
                         }`}>
-                        <Text className={`${isSelected ? 'text-purple-900 font-semibold' : 'text-gray-800'}`}>
+                        <Text
+                          className={`${
+                            isSelected ? 'text-purple-900 font-semibold' : 'text-gray-800'
+                          }`}>
                           {item.name}
                         </Text>
                       </TouchableOpacity>
@@ -173,83 +194,86 @@ const IncomeScreen = ({ navigation }) => {
                 placeholder="Description"
                 placeholderTextColor="#6B7280"
                 value={description}
-                onChangeText={setDescription}
+                onChangeText={text => {
+                  setDescription(text);
+                  console.log('Description changed:', text);
+                }}
               />
             </View>
 
-      {/* Account Selector */}
-<TouchableOpacity
-  className="flex-row justify-between items-center p-4 bg-gray-100 rounded-xl mt-4"
-  onPress={() => {
-    setShowAccountList(prev => !prev);
-    setShowPartyList(false);
-  }}>
-  <Text className="text-gray-600 font-medium">Account</Text>
-  <View className="flex-row items-center">
-    <Text className="text-gray-800 font-semibold mr-2">
-      {selectedAccount
-        ? selectedAccount.type === 'Bank'
-          ? `${selectedAccount.bankName} (${selectedAccount.accountNumber})`
-          : `${selectedAccount.cashName} (${selectedAccount.cashNameNo})`
-        : ''}
-    </Text>
-    <Icon
-      name={showAccountList ? 'chevron-up' : 'chevron-down'}
-      size={20}
-      color="#6B7280"
-    />
-  </View>
-</TouchableOpacity>
+            {/* Account Selector */}
+            <TouchableOpacity
+              className="flex-row justify-between items-center p-4 bg-gray-100 rounded-xl mt-4"
+              onPress={() => {
+                setShowAccountList(prev => !prev);
+                setShowPartyList(false);
+              }}>
+              <Text className="text-gray-600 font-medium">Account</Text>
+              <View className="flex-row items-center">
+                <Text className="text-gray-800 font-semibold mr-2">
+                  {selectedAccount
+                    ? selectedAccount.type === 'Bank'
+                      ? `${selectedAccount.bankName} (${selectedAccount.accountNumber})`
+                      : `${selectedAccount.cashName} (${selectedAccount.cashNameNo})`
+                    : ''}
+                </Text>
+                <Icon
+                  name={showAccountList ? 'chevron-up' : 'chevron-down'}
+                  size={20}
+                  color="#6B7280"
+                />
+              </View>
+            </TouchableOpacity>
 
-{showAccountList && (
-  <View className="bg-gray-100 rounded-xl mt-2" style={{ maxHeight: 240 }}>
-    <FlatList
-      data={accounts}
-      keyExtractor={(item, index) => index.toString()}
-      nestedScrollEnabled
-      showsVerticalScrollIndicator
-      renderItem={({ item }) => {
-        const label =
-          item.type === 'Bank'
-            ? `${item.bankName} (${item.accountNumber})`
-            : `${item.cashName} (${item.cashNameNo})`;
+            {showAccountList && (
+              <View className="bg-gray-100 rounded-xl mt-2" style={{ maxHeight: 240 }}>
+                <FlatList
+                  data={accounts}
+                  keyExtractor={(item, index) => index.toString()}
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator
+                  renderItem={({ item }) => {
+                    const label =
+                      item.type === 'Bank'
+                        ? `${item.bankName} (${item.accountNumber})`
+                        : `${item.cashName} (${item.cashNameNo})`;
 
-        const isSelected =
-          selectedAccount &&
-          ((item.type === 'Bank' &&
-            selectedAccount.bankName === item.bankName &&
-            selectedAccount.accountNumber === item.accountNumber) ||
-            (item.type !== 'Bank' &&
-              selectedAccount.cashName === item.cashName &&
-              selectedAccount.cashNameNo === item.cashNameNo));
+                    const isSelected =
+                      selectedAccount &&
+                      ((item.type === 'Bank' &&
+                        selectedAccount.bankName === item.bankName &&
+                        selectedAccount.accountNumber === item.accountNumber) ||
+                        (item.type !== 'Bank' &&
+                          selectedAccount.cashName === item.cashName &&
+                          selectedAccount.cashNameNo === item.cashNameNo));
 
-        return (
-          <TouchableOpacity
-            onPress={() => {
-              setSelectedAccount(item);
-              setShowAccountList(false);
-            }}
-            className={`px-4 py-3 border-b border-gray-200 ${
-              isSelected ? 'bg-purple-200' : 'bg-white'
-            }`}>
-            <Text
-              className={`${
-                isSelected ? 'text-purple-900 font-semibold' : 'text-gray-800'
-              }`}>
-              {label}
-            </Text>
-          </TouchableOpacity>
-        );
-      }}
-      ListEmptyComponent={
-        <View className="px-4 py-3">
-          <Text className="text-gray-500 text-center">No accounts found</Text>
-        </View>
-      }
-    />
-  </View>
-)}
-
+                    return (
+                      <TouchableOpacity
+                        onPress={() => {
+                          setSelectedAccount(item);
+                          setShowAccountList(false);
+                          console.log('Selected Account:', item);
+                        }}
+                        className={`px-4 py-3 border-b border-gray-200 ${
+                          isSelected ? 'bg-purple-200' : 'bg-white'
+                        }`}>
+                        <Text
+                          className={`${
+                            isSelected ? 'text-purple-900 font-semibold' : 'text-gray-800'
+                          }`}>
+                          {label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  }}
+                  ListEmptyComponent={
+                    <View className="px-4 py-3">
+                      <Text className="text-gray-500 text-center">No accounts found</Text>
+                    </View>
+                  }
+                />
+              </View>
+            )}
 
             {/* Attachment Placeholder */}
             <TouchableOpacity className="flex-row items-center mt-4">
