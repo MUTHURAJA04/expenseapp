@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   SafeAreaView,
   TouchableOpacity,
-  ScrollView,
   StatusBar,
   Modal,
   TouchableWithoutFeedback,
+  FlatList,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import NotificationItem from '../componets/NotificationItem';
+import NotificationItem from '../componets/NotificationItem'; 
 
 const NotificationScreen = ({ navigation }) => {
   const [notifications, setNotifications] = useState([
@@ -20,6 +20,7 @@ const NotificationScreen = ({ navigation }) => {
       description: 'Your shopping budget has exceeded by $25.60',
       time: '10:30 AM',
       read: false,
+      highlighted: false,
     },
     {
       id: 2,
@@ -27,6 +28,7 @@ const NotificationScreen = ({ navigation }) => {
       description: 'Your utilities budget is close to the limit',
       time: 'Yesterday',
       read: false,
+      highlighted: false,
     },
     {
       id: 3,
@@ -34,26 +36,34 @@ const NotificationScreen = ({ navigation }) => {
       description: 'Your monthly salary has been credited',
       time: 'Today',
       read: true,
+      highlighted: false,
     },
   ]);
 
   const [showMenu, setShowMenu] = useState(false);
 
-  const markAllAsRead = () => {
+  const markAllAsRead = useCallback(() => {
     setNotifications(notifications.map(n => ({ ...n, read: true })));
     setShowMenu(false);
-  };
+  }, [notifications]);
 
-  const deleteAll = () => {
+  const deleteAll = useCallback(() => {
     setNotifications([]);
     setShowMenu(false);
-  };
+  }, []);
 
-  const markAsRead = (id) => {
+  const markAsRead = useCallback((id) => {
     setNotifications(prev =>
       prev.map(n => (n.id === id ? { ...n, read: true } : n))
     );
-  };
+  }, []);
+
+const markAsHighlighted = useCallback((id) => {
+  setNotifications(prev =>
+    prev.map(n => (n.id === id ? { ...n, highlighted: !n.highlighted } : n))
+  );
+}, []);
+
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -71,25 +81,27 @@ const NotificationScreen = ({ navigation }) => {
       </View>
 
       {/* Notifications List */}
-      <ScrollView className="flex-1">
-        {notifications.length > 0 ? (
-          notifications.map((notification) => (
-            <NotificationItem
-              key={notification.id}
-              title={notification.title}
-              description={notification.description}
-              time={notification.time}
-              read={notification.read}
-              onSwipeRight={() => markAsRead(notification.id)}
-            />
-          ))
-        ) : (
+      <FlatList
+        data={notifications}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => (
+          <NotificationItem
+            title={item.title}
+            description={item.description}
+            time={item.time}
+            read={item.read}
+            highlighted={item.highlighted}
+            onSwipeRight={() => markAsRead(item.id)}
+            onSwipeLeft={() => markAsHighlighted(item.id)}
+          />
+        )}
+        ListEmptyComponent={() => (
           <View className="flex-1 justify-center items-center mt-40">
             <Icon name="bell-off-outline" size={60} color="#9CA3AF" />
             <Text className="text-gray-400 mt-4">No notifications available</Text>
           </View>
         )}
-      </ScrollView>
+      />
 
       {/* Action Menu Modal */}
       <Modal

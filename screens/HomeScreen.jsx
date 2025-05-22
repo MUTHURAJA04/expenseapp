@@ -22,23 +22,34 @@ const chartConfig = {
   backgroundGradientFrom: '#ffffff',
   backgroundGradientTo: '#ffffff',
   color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
-  strokeWidth: 2,
+  strokeWidth: 2.5,
   fillShadowGradientFrom: '#8B5CF6',
-  fillShadowGradientFromOpacity: 0.2,
+  fillShadowGradientFromOpacity: 0.3,
   fillShadowGradientTo: '#8B5CF6',
-  fillShadowGradientToOpacity: 0.0,
-  propsForBackgroundLines: { strokeWidth: 0 },
-  propsForDots: { r: '0' },
-  propsForLabels: { opacity: 0 },
-  yLabelsOffset: -1000,
-  xLabelsOffset: -1000,
-};
-
-const dataSets = {
-  Today: [20, 30, 25, 40],
-  Week: [50, 60, 55, 70, 80, 60, 65],
-  Month: [100, 120, 110, 130, 140, 135, 150, 160, 155, 165, 170, 180],
-  Year: [300, 400, 350, 450, 500, 480, 520, 530, 550, 570, 590, 600],
+  fillShadowGradientToOpacity: 0.05,
+  propsForBackgroundLines: {
+    strokeWidth: 1,
+    strokeDasharray: null,
+    stroke: "rgba(139, 92, 246, 0.1)",
+  },
+  propsForDots: {
+    r: '4',
+    strokeWidth: '2',
+    stroke: '#8B5CF6'
+  },
+  propsForLabels: {
+    fontSize: 10,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  decimalPlaces: 0,
+  formatYLabel: (value) => {
+    if (value >= 1000) return `₹${(value/1000).toFixed(0)}k`;
+    return `₹${value}`;
+  },
+  labelRotation: 315,
+  xLabelsOffset: 15,
+  yLabelsOffset: 5,
 };
 
 const HomeScreen = ({ navigation }) => {
@@ -55,6 +66,94 @@ const allTransactions = [...transactions, ...expenseTransactions, ...transferTra
   (a, b) => new Date(b.date) - new Date(a.date),
 );
 
+
+  // Function to get date ranges based on selected period
+  const getDateRange = () => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    switch (selectedPeriod) {
+      case 'Today':
+        return { start: today, points: 24, interval: 'hour' };
+      case 'Week':
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - 6);
+        return { start: weekStart, points: 7, interval: 'day' };
+      case 'Month':
+        const monthStart = new Date(today);
+        monthStart.setDate(1);
+        return { start: monthStart, points: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(), interval: 'day' };
+      case 'Year':
+        const yearStart = new Date(today.getFullYear(), 0, 1);
+        return { start: yearStart, points: 12, interval: 'month' };
+      default:
+        return { start: today, points: 24, interval: 'hour' };
+    }
+  };
+
+  // Function to calculate spend data based on date range
+  const calculateSpendData = () => {
+    const { start, points, interval } = getDateRange();
+    const data = new Array(points).fill(0);
+
+    expenseTransactions.forEach(transaction => {
+      const txDate = new Date(transaction.date);
+      let index = 0;
+
+      switch (interval) {
+        case 'hour':
+          index = txDate.getHours();
+          break;
+        case 'day':
+          index = Math.floor((txDate - start) / (1000 * 60 * 60 * 24));
+          break;
+        case 'month':
+          index = txDate.getMonth();
+          break;
+      }
+
+      if (index >= 0 && index < points) {
+        data[index] += transaction.amount;
+      }
+    });
+
+    return data;
+  };
+
+  // Get live spend data
+  const spendData = calculateSpendData();
+
+  // Function to generate labels based on selected period
+  // Modify getLabels function to reduce label density
+  const getLabels = () => {
+    const now = new Date();
+    
+    switch (selectedPeriod) {
+      case 'Today':
+        return Array.from({ length: 12 }, (_, i) => 
+          i % 3 === 0 ? `${i.toString().padStart(2, '0')}:00` : ''
+        );
+      case 'Week':
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const today = now.getDay();
+        return Array.from({ length: 7 }, (_, i) => {
+          const dayIndex = (today - 6 + i + 7) % 7;
+          return days[dayIndex];
+        });
+      case 'Month':
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        return Array.from({ length: daysInMonth }, (_, i) => 
+          (i + 1) % 5 === 0 ? `${i + 1}` : ''
+        );
+      case 'Year':
+        return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      default:
+        return [];
+    }
+  };
+
+  // Get labels for current period
+  const periodLabels = getLabels();
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -93,7 +192,10 @@ const allTransactions = [...transactions, ...expenseTransactions, ...transferTra
 
           {/* Income and Expense Cards */}
           <View className="flex-row justify-between mt-6">
-            <View className="bg-emerald-500 px-4 py-5 rounded-3xl flex-row items-center justify-center flex-1 mr-3">
+            <TouchableOpacity 
+              className="bg-emerald-500 px-4 py-5 rounded-3xl flex-row items-center justify-center flex-1 mr-3"
+              onPress={() => navigation.navigate('Transact', { filter: 'Income' })}
+            >
               <View className="bg-white/20 p-3 rounded-full mr-3">
                 <Icon name="wallet-outline" size={24} color="#fff" />
               </View>
@@ -101,9 +203,12 @@ const allTransactions = [...transactions, ...expenseTransactions, ...transferTra
                 <Text className="text-white text-sm">Income</Text>
                 <Text className="text-white font-bold text-lg">₹{totalIncome}</Text>
               </View>
-            </View>
-
-            <View className="bg-red-500 px-4 py-5 rounded-3xl flex-row items-center justify-center flex-1">
+            </TouchableOpacity>
+          
+            <TouchableOpacity 
+              className="bg-red-500 px-4 py-5 rounded-3xl flex-row items-center justify-center flex-1"
+              onPress={() => navigation.navigate('Transact', { filter: 'Expense' })}
+            >
               <View className="bg-white/20 p-3 rounded-full mr-3">
                 <Icon name="credit-card-outline" size={24} color="#fff" />
               </View>
@@ -111,53 +216,61 @@ const allTransactions = [...transactions, ...expenseTransactions, ...transferTra
                 <Text className="text-white text-sm">Expenses</Text>
                 <Text className="text-white font-bold text-lg">₹{totalExpense}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           </View>
 
-          {/* Spend Frequency Graph */}
-          <View className="mt-6">
-            <Text className="text-lg font-semibold">Spend Frequency</Text>
-            <View className="mt-4 flex justify-center items-center">
-              <LineChart
-                data={{
-                  labels: [],
-                  datasets: [{ data: dataSets[selectedPeriod] }],
-                }}
-                width={screenWidth - 10}
-                height={180}
-                chartConfig={chartConfig}
-                bezier
-                withDots={false}
-                withInnerLines={false}
-                withOuterLines={false}
-                withVerticalLines={false}
-                withHorizontalLines={false}
-                withVerticalLabels={false}
-                withHorizontalLabels={false}
-                style={{ marginVertical: 8, borderRadius: 16 }}
-              />
-            </View>
-
-            {/* Period Selector */}
-            <View className="flex-row justify-between px-4 mt-2">
-              {['Today', 'Week', 'Month', 'Year'].map(period => (
-                <TouchableOpacity key={period} onPress={() => setSelectedPeriod(period)}>
-                  <View
-                    className={`${
-                      selectedPeriod === period ? 'bg-amber-100 px-4 py-1 rounded-full' : ''
+{/* Spend Frequency Graph */}
+ {/* Chart Section */}
+ <View className="mt-6">
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className="text-lg font-semibold">Spending</Text>
+              <View className="flex-row">
+                {['Today', 'Week', 'Month', 'Year'].map((period) => (
+                  <TouchableOpacity
+                    key={period}
+                    onPress={() => setSelectedPeriod(period)}
+                    className={`px-3 py-1 rounded-full mr-2 ${
+                      selectedPeriod === period
+                        ? 'bg-purple-100'
+                        : 'bg-gray-50'
                     }`}>
                     <Text
                       className={`${
                         selectedPeriod === period
-                          ? 'text-[#8B5CF6] font-medium'
-                          : 'text-gray-400'
+                          ? 'text-purple-600'
+                          : 'text-gray-500'
                       }`}>
                       {period}
                     </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
+
+            <LineChart
+              data={{
+                labels: periodLabels,
+                datasets: [
+                  {
+                    data: spendData.length > 0 ? spendData : [0],
+                  },
+                ],
+              }}
+              width={screenWidth - 32}
+              height={220}
+              chartConfig={chartConfig}
+              bezier
+              style={{
+                marginVertical: 8,
+                borderRadius: 5,
+              }}
+              withHorizontalLines={true}
+              withVerticalLines={false}
+              withDots={false}
+              withShadow={true}
+              withScrollableDot={false}
+              segments={5}
+            />
           </View>
 
           {/* Recent Transactions */}
