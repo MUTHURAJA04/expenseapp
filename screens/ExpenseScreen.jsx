@@ -9,16 +9,20 @@ import {
   FlatList,
   TouchableWithoutFeedback,
   Keyboard,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useDispatch, useSelector} from 'react-redux';
 import {addExpense} from '../redux/slices/expenseSlice';
+import {addNotification} from '../redux/slices/notificationSlice';
+
 import Toast from 'react-native-toast-message';
 
 const ExpenseScreen = ({navigation}) => {
   const dispatch = useDispatch();
   const parties = useSelector(state => state.categories.partyCategories);
   const accounts = useSelector(state => state.categories.accounts);
+  const notifications = useSelector(state => state.notification.notifications);
 
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
@@ -27,7 +31,10 @@ const ExpenseScreen = ({navigation}) => {
   const [showPartyList, setShowPartyList] = useState(false);
   const [showAccountList, setShowAccountList] = useState(false);
 
-const handleAddExpense = () => {
+  const budgetItems = useSelector(state => state.budget.budgets);
+  const expenses = useSelector(state => state.expense.transactions);
+
+  const handleAddExpense = () => {
     if (!amount || isNaN(amount) || Number(amount) <= 0) {
       Toast.show({
         type: 'error',
@@ -55,8 +62,54 @@ const handleAddExpense = () => {
       return;
     }
 
+    // ===== Budget Validation Logic =====
+
+    const partyBudget = budgetItems.find(b => b.party === selectedParty.name);
+
+    const totalPartyExpense = expenses
+      .filter(exp => exp.partyName === selectedParty.name)
+      .reduce((sum, exp) => sum + exp.amount, 0);
+
+    const newExpenseAmount = Number(amount);
+    const remainingBudget = partyBudget
+      ? partyBudget.amount - totalPartyExpense
+      : 0;
+
+ 
+if (partyBudget && newExpenseAmount > remainingBudget) {
+  const alreadyNotified = notifications.some(
+    n =>
+      n.title === 'Budget Exceeded' &&
+      n.description.includes(selectedParty.name)
+  );
+
+  if (!alreadyNotified) {
+    console.log('=== Budget Exceeded ===');
+    console.log('Party:', selectedParty.name);
+    console.log('Budget:', partyBudget.amount);
+    console.log('Total Spent:', totalPartyExpense);
+    console.log('Attempted Expense:', newExpenseAmount);
+    console.log('=======================');
+
+
+    dispatch(
+      addNotification({
+        title: 'Budget Exceeded',
+        description: `${selectedParty.name} budget exceeded`,
+        time: new Date().toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+      })
+    );
+  }
+
+ 
+}
+
+    // ===== Prepare Expense Data =====
     const expenseData = {
-      amount: Number(amount),
+      amount: newExpenseAmount,
       description: description || 'No description',
       partyName: selectedParty.name,
       accountName:

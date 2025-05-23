@@ -1,239 +1,286 @@
-import React, {useState} from 'react';
-import {
-  View,
-  Text,
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  FlatList, 
+  Keyboard,
   SafeAreaView,
-  TouchableOpacity,
-  TextInput,
-  Switch,
   ScrollView,
   StatusBar,
-  Modal,
+  KeyboardAvoidingView,
+  Platform,
+  Modal 
 } from 'react-native';
+import React, { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { addBudget, deleteBudget } from '../redux/slices/budgetSlice';
+import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import BottomNavigation from '../componets/BottomNavigation';
-import { useSelector } from 'react-redux';
 
-const BudgetScreen = ({navigation}) => {
-  const [currentMonth, setCurrentMonth] = useState('May 2025');
-  const [showCreateBudget, setShowCreateBudget] = useState(false);
+const BudgetScreen = ({ navigation }) => {
+  const dispatch = useDispatch();
+  const parties = useSelector(state => state.categories.partyCategories);
+  const budgetItems = useSelector(state => state.budget.budgets);
+
   const [amount, setAmount] = useState('');
-  const [receiveAlert, setReceiveAlert] = useState(false);
-  const [isAdding, setIsAdding] = useState(false);
+  const [selectedParty, setSelectedParty] = useState('');
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showPartyModal, setShowPartyModal] = useState(false);
 
-  // Month navigation functions
-  const goToPreviousMonth = () => {
-    // Implement month decrement logic
-    console.log('Previous month');
+  const handleSubmit = () => {
+    if (!amount || !selectedParty) {
+      Toast.show({ type: 'error', text1: 'Please fill all fields' });
+      return;
+    }
+
+    const alreadyExists = budgetItems.some(item => item.party === selectedParty);
+    if (alreadyExists) {
+      Toast.show({
+        type: 'error',
+        text1: 'Budget for this category already exists',
+      });
+      return;
+    }
+
+    const budgetData = {
+      id: Date.now(),
+      amount: parseFloat(amount),
+      party: selectedParty,
+    };
+
+    dispatch(addBudget(budgetData));
+    Toast.show({ type: 'success', text1: 'Budget added successfully!' });
+    setAmount('');
+    setSelectedParty('');
+    Keyboard.dismiss();
   };
 
-  const goToNextMonth = () => {
-    // Implement month increment logic
-    console.log('Next month');
-  };
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedDeleteId, setSelectedDeleteId] = useState(null);
 
-  const EmptyState = () => (
-    <View className="flex-1">
-      <StatusBar
-        barStyle="light-content" // This makes the icons white
-        backgroundColor="#8B5CF6" // This matches your purple header
-      />
-      {/* Big Purple Header */}
-      <View className="bg-[#8B5CF6] px-6 pt-16 pb-12 rounded-b-3xl">
-        <View className="flex-row justify-between items-center mb-8">
-          <TouchableOpacity onPress={goToPreviousMonth} className="p-3">
-            <Icon name="chevron-left" size={32} color="#fff" />
-          </TouchableOpacity>
-
-          <Text className="text-white text-3xl font-bold">{currentMonth}</Text>
-
-          <TouchableOpacity onPress={goToNextMonth} className="p-3">
-            <Icon name="chevron-right" size={32} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Main Content */}
-      <View className="flex-1 bg-white rounded-t-3xl -mt-8">
-        <ScrollView
-          className="flex-1 px-6 pt-8"
-          contentContainerStyle={{flexGrow: 1}}>
-          <View className="flex-1 justify-center items-center">
-            <View className="bg-purple-100 p-6 rounded-full mb-6">
-              <Icon name="wallet-outline" size={48} color="#8B5CF6" />
+  const DeleteConfirmationModal = () => (
+    <Modal
+      visible={showDeleteModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowDeleteModal(false)}
+      onShow={() => {
+        StatusBar.setBackgroundColor('rgba(0, 0, 0, 0.5)');
+      }}
+      onDismiss={() => {
+        StatusBar.setBackgroundColor('#8B5CF6');
+      }}
+    >
+      <View className="flex-1 bg-black/50 justify-center items-center">
+        <View className="bg-white rounded-2xl p-6 mx-6 w-full max-w-sm">
+          <View className="items-center mb-4">
+            <View className="w-16 h-16 rounded-full bg-red-100 items-center justify-center mb-3">
+              <Icon name="trash-can-outline" size={32} color="#EF4444" />
             </View>
-            <Text className="text-gray-800 text-xl text-center font-medium">
-              You don't have a budget yet
-            </Text>
-            <Text className="text-gray-500 text-base text-center mt-2 px-8">
-              Let's create one so you can stay in control of your spending
+            <Text className="text-xl font-semibold text-gray-900">Delete Budget</Text>
+            <Text className="text-gray-500 text-center mt-2">
+              Are you sure you want to delete this budget? This action cannot be undone.
             </Text>
           </View>
-        </ScrollView>
-
-        {/* Create Budget Button */}
-        <View className="px-6 mb-24">
-          <TouchableOpacity
-            className="bg-[#8B5CF6] py-4 rounded-full"
-            onPress={() => setShowCreateBudget(true)}>
-            <Text className="text-white text-center">Create a budget</Text>
-          </TouchableOpacity>
+          
+          <View className="flex-row justify-center space-x-6 mt-6">
+            <TouchableOpacity
+              onPress={() => setShowDeleteModal(false)}
+              className="flex-1 bg-gray-100 py-4 px-6 rounded-xl mr-3"
+            >
+              <Text className="text-gray-700 font-medium text-center">Cancel</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={() => {
+                dispatch(deleteBudget(selectedDeleteId));
+                setShowDeleteModal(false);
+                Toast.show({
+                  type: 'success',
+                  text1: 'Budget deleted successfully',
+                  visibilityTime: 2000,
+                });
+              }}
+              className="flex-1 bg-red-500 py-4 px-6 rounded-xl"
+            >
+              <Text className="text-white font-medium text-center">Delete</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
+    </Modal>
+  );
+
+  const confirmDelete = (id) => {
+    setSelectedDeleteId(id);
+    setShowDeleteModal(true);
+  };
+
+  const renderBudgetItem = ({ item }) => (
+    <TouchableOpacity
+      onLongPress={() => confirmDelete(item.id)}
+      className="flex-row justify-between items-center p-4 bg-white rounded-xl mb-3 shadow-sm"
+      style={{
+        shadowColor: '#8B5CF6',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3
+      }}
+    >
+      <View className="flex-row items-center">
+        <View className="w-10 h-10 rounded-full bg-purple-100 items-center justify-center mr-3">
+          <Icon name="wallet-outline" size={20} color="#8B5CF6" />
+        </View>
+        <View>
+          <Text className="text-base text-gray-800 font-medium">{item.party}</Text>
+          <Text className="text-sm text-gray-500">Long press to delete</Text>
+        </View>
+      </View>
+      <Text className="text-lg text-[#8B5CF6] font-bold">₹{item.amount.toFixed(2)}</Text>
+    </TouchableOpacity>
+  );
+
+  const ListEmptyComponent = () => (
+    <View className="flex-1 justify-center items-center py-8">
+      <View className="bg-purple-100 p-5 rounded-full mb-4">
+        <Icon name="wallet-outline" size={32} color="#8B5CF6" />
+      </View>
+      <Text className="text-gray-600 text-lg font-medium">No budget items added yet</Text>
+      <Text className="text-gray-400 text-sm mt-1">Start by adding a new budget</Text>
     </View>
   );
 
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const parties = useSelector(state => state.categories.partyCategories);
-
-  const CreateBudgetScreen = () => (
-    <View className="flex-1 bg-[#8B5CF6]">
-      <StatusBar
-        barStyle="light-content" // This makes the icons white
-        backgroundColor="#8B5CF6" // This matches your purple header
-      />
-      {/* Big Header */}
-      <View className="px-6 pt-16 pb-8">
-        <View className="flex-row items-center mb-8">
-          <TouchableOpacity onPress={() => setShowCreateBudget(false)}>
-            <Icon name="arrow-left" size={32} color="#fff" />
-          </TouchableOpacity>
-          <Text className="text-white text-3xl font-bold ml-4">
-            Create Budget
-          </Text>
-        </View>
-
-          {/* Amount Input */}
-          <View className="">
-        <View className="px-2">
-          <Text className="text-white text-lg mb-4">
-            How much do you want to spend this month?
-          </Text>
-          <View className="flex-row items-center">
-            <Text className="text-white text-5xl mr-2">₹</Text>
-            <TextInput
-              className="text-white text-5xl flex-1 font-bold"
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="numeric"
-              placeholder="0.00"
-              placeholderTextColor="#ffffff80"
-            />
-          </View>
-        </View>
-      </View>
-
-      </View>
-
-      {/* Bottom Sheet */}
-      <View className="flex-1 bg-white rounded-t-3xl px-6 pt-8">
-        <ScrollView>
-          <TouchableOpacity 
-            className="flex-row justify-between items-center p-5 bg-gray-50 rounded-xl"
-            onPress={() => setShowCategoryModal(true)}
-          >
-            <Text className="text-gray-800 text-lg">Category</Text>
-            <View className="flex-row items-center">
-              <Text className="text-gray-600 mr-2">
-                {selectedCategory ? selectedCategory.name : 'Select category'}
-              </Text>
-              <Icon name="chevron-down" size={24} color="#6B7280" />
-            </View>
-          </TouchableOpacity>
-
-          {/* Category Selection Modal */}
-          <Modal
-            visible={showCategoryModal}
-            transparent
-            animationType="fade"
-            onRequestClose={() => setShowCategoryModal(false)}
-          >
-            <TouchableOpacity 
-              className="flex-1 bg-black/30"
-              activeOpacity={1}
-              onPress={() => setShowCategoryModal(false)}
-            >
-              <View className="mt-32 mx-4 bg-white rounded-2xl overflow-hidden">
-                <View className="p-4 border-b border-gray-100 flex-row justify-between items-center bg-gray-50">
-                  <Text className="text-lg font-semibold text-gray-800">Select Category</Text>
-                  <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
-                    <Icon name="close" size={24} color="#6B7280" />
-                  </TouchableOpacity>
-                </View>
-                
-                <ScrollView className="max-h-96">
-                  {parties?.map((party) => (
-                    <TouchableOpacity
-                      key={party.id}
-                      className={`flex-row items-center p-4 border-b border-gray-100 ${
-                        selectedCategory?.name === party.name ? 'bg-purple-50' : ''
-                      }`}
-                      onPress={() => {
-                        setSelectedCategory(party);
-                        setShowCategoryModal(false);
-                      }}
-                    >
-                      <View className={`w-10 h-10 rounded-full items-center justify-center ${
-                        selectedCategory?.name === party.name ? 'bg-purple-100' : 'bg-gray-100'
-                      }`}>
-                        <Icon 
-                          name={party.icon || 'wallet'} 
-                          size={20} 
-                          color={selectedCategory?.name === party.name ? '#8B5CF6' : '#6B7280'} 
-                        />
-                      </View>
-                      <View className="ml-3 flex-1">
-                        <Text className={`text-lg ${
-                          selectedCategory?.name === party.name ? 'text-purple-600 font-medium' : 'text-gray-800'
-                        }`}>
-                          {party.name}
-                        </Text>
-                      </View>
-                      {selectedCategory?.name === party.name && (
-                        <Icon name="check" size={24} color="#8B5CF6" />
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
+  const PartyModal = () => (
+    <Modal
+      visible={showPartyModal}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setShowPartyModal(false)}
+    >
+      <View className="flex-1 bg-black/30 justify-end">
+        <View className="bg-white rounded-t-3xl p-6">
+          <View className="flex-row justify-between items-center mb-6">
+            <Text className="text-xl font-semibold">Select Party</Text>
+            <TouchableOpacity onPress={() => setShowPartyModal(false)}>
+              <Icon name="close" size={24} color="#6B7280" />
             </TouchableOpacity>
-          </Modal>
-
-          <View className="flex-row justify-between items-center p-5 mt-6 border-b border-gray-100">
-            <View>
-              <Text className="text-gray-800 text-lg">Receive Alert</Text>
-              <Text className="text-gray-500 text-sm mt-1">
-                Get notified when you reach budget limits
-              </Text>
-            </View>
-            <Switch
-              value={receiveAlert}
-              onValueChange={setReceiveAlert}
-              trackColor={{false: '#D1D5DB', true: '#C4B5FD'}}
-              thumbColor={receiveAlert ? '#8B5CF6' : '#fff'}
-              ios_backgroundColor="#D1D5DB"
-            />
           </View>
-        </ScrollView>
-        <View className=" mb-24">
-          <TouchableOpacity className="bg-[#8B5CF6] py-4 rounded-full mb-8 mt-4 flex-row justify-center items-center">
-            <Text className="text-white text-lg font-medium">Continue</Text>
-            <Icon
-              name="chevron-right"
-              size={24}
-              color="#fff"
-              className="ml-2"
-            />
-          </TouchableOpacity>
+
+          <ScrollView className="max-h-96">
+            {parties.map(party => (
+              <TouchableOpacity
+                key={party.id}
+                onPress={() => {
+                  setSelectedParty(party.name);
+                  setShowPartyModal(false);
+                }}
+                className={`flex-row items-center p-4 mb-2 rounded-xl ${
+                  selectedParty === party.name ? 'bg-purple-50' : 'bg-gray-50'
+                }`}
+              >
+                <View className={`w-10 h-10 rounded-full ${
+                  selectedParty === party.name ? 'bg-purple-200' : 'bg-gray-200'
+                } items-center justify-center mr-3`}>
+                  <Icon 
+                    name={party.icon || 'account'} 
+                    size={20} 
+                    color={selectedParty === party.name ? '#8B5CF6' : '#6B7280'} 
+                  />
+                </View>
+                <View>
+                  <Text className={`font-medium ${
+                    selectedParty === party.name ? 'text-purple-600' : 'text-gray-800'
+                  }`}>{party.name}</Text>
+                  {party.location && (
+                    <Text className="text-gray-500 text-sm">{party.location}</Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
       </View>
-    </View>
+    </Modal>
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      {showCreateBudget ? <CreateBudgetScreen /> : <EmptyState />}
+    <SafeAreaView className="flex-1 bg-[#8B5CF6]">
+      <StatusBar 
+        barStyle="light-content"
+        backgroundColor="#8B5CF6"
+      />
+      
+      {/* Header */}
+      <View className="px-6 pt-12">
+        <Text className="text-white text-2xl font-bold text-center mb-6">Budget</Text>
+      </View>
+
+      <View className="flex-1 bg-white rounded-t-3xl px-6 pt-8">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1"
+        >
+          <ScrollView 
+            className="flex-1"
+            contentContainerStyle={{ paddingBottom: 100 }}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Add Budget Card */}
+            <View className="bg-gray-50 p-6 rounded-2xl shadow-sm mb-6">
+              <Text className="text-xl font-bold text-gray-800 mb-5">Add New Budget</Text>
+
+              <TextInput
+                placeholder="Enter amount"
+                placeholderTextColor="#9ca3af"
+                keyboardType="numeric"
+                value={amount}
+                onChangeText={setAmount}
+                className="bg-white border border-gray-200 p-4 mb-4 rounded-xl text-gray-800 text-base"
+              />
+
+              {/* Party Selector Button */}
+              <TouchableOpacity
+                onPress={() => setShowPartyModal(true)}
+                className="flex-row items-center justify-between bg-white border border-gray-200 p-4 rounded-xl mb-6"
+              >
+                <View className="flex-row items-center">
+                  <Icon name="account" size={20} color="#6B7280" />
+                  <Text className="ml-3 text-gray-600">
+                    {selectedParty || 'Select Party'}
+                  </Text>
+                </View>
+                <Icon name="chevron-down" size={20} color="#6B7280" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleSubmit}
+                className="bg-[#8B5CF6] rounded-xl p-4 items-center justify-center"
+              >
+                <Text className="text-white font-bold text-lg">Add Budget</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Budget List */}
+            <View className="mb-6">
+              <Text className="text-xl font-bold text-gray-800 mb-5">Your Budgets</Text>
+              <FlatList
+                data={budgetItems}
+                renderItem={renderBudgetItem}
+                keyExtractor={item => item.id.toString()}
+                ListEmptyComponent={ListEmptyComponent}
+                scrollEnabled={false}
+                contentContainerStyle={budgetItems.length === 0 ? { flex: 1 } : {}}
+              />
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </View>
+
+      <PartyModal />
+      <DeleteConfirmationModal />
       <BottomNavigation />
     </SafeAreaView>
   );

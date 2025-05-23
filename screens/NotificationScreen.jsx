@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,61 +9,31 @@ import {
   TouchableWithoutFeedback,
   FlatList,
 } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import NotificationItem from '../componets/NotificationItem'; 
+import NotificationItem from '../componets/NotificationItem';
+import {
+  markAsRead,
+  toggleHighlight,
+  markAllAsRead,
+  deleteAll,
+} from '../redux/slices/notificationSlice'; 
 
 const NotificationScreen = ({ navigation }) => {
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      title: 'Shopping budget has exceeded the limit',
-      description: 'Your shopping budget has exceeded by $25.60',
-      time: '10:30 AM',
-      read: false,
-      highlighted: false,
-    },
-    {
-      id: 2,
-      title: 'Utilities budget warning',
-      description: 'Your utilities budget is close to the limit',
-      time: 'Yesterday',
-      read: false,
-      highlighted: false,
-    },
-    {
-      id: 3,
-      title: 'Salary Received',
-      description: 'Your monthly salary has been credited',
-      time: 'Today',
-      read: true,
-      highlighted: false,
-    },
-  ]);
+  const dispatch = useDispatch();
+  const notifications = useSelector(state => state.notification.notifications);
 
   const [showMenu, setShowMenu] = useState(false);
 
-  const markAllAsRead = useCallback(() => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
+  const handleMarkAllAsRead = () => {
+    dispatch(markAllAsRead());
     setShowMenu(false);
-  }, [notifications]);
+  };
 
-  const deleteAll = useCallback(() => {
-    setNotifications([]);
+  const handleDeleteAll = () => {
+    dispatch(deleteAll());
     setShowMenu(false);
-  }, []);
-
-  const markAsRead = useCallback((id) => {
-    setNotifications(prev =>
-      prev.map(n => (n.id === id ? { ...n, read: true } : n))
-    );
-  }, []);
-
-const markAsHighlighted = useCallback((id) => {
-  setNotifications(prev =>
-    prev.map(n => (n.id === id ? { ...n, highlighted: !n.highlighted } : n))
-  );
-}, []);
-
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -91,8 +61,8 @@ const markAsHighlighted = useCallback((id) => {
             time={item.time}
             read={item.read}
             highlighted={item.highlighted}
-            onSwipeRight={() => markAsRead(item.id)}
-            onSwipeLeft={() => markAsHighlighted(item.id)}
+            onSwipeRight={() => dispatch(markAsRead(item.id))}
+            onSwipeLeft={() => dispatch(toggleHighlight(item.id))}
           />
         )}
         ListEmptyComponent={() => (
@@ -115,7 +85,7 @@ const markAsHighlighted = useCallback((id) => {
             <View className="absolute top-16 right-4 bg-white rounded-lg shadow-lg w-48">
               <TouchableOpacity
                 className="flex-row items-center px-4 py-3"
-                onPress={markAllAsRead}
+                onPress={handleMarkAllAsRead}
               >
                 <Icon name="check-all" size={20} color="#4B5563" />
                 <Text className="ml-3 text-gray-700">Mark all as read</Text>
@@ -123,7 +93,7 @@ const markAsHighlighted = useCallback((id) => {
               <View className="h-px bg-gray-200" />
               <TouchableOpacity
                 className="flex-row items-center px-4 py-3"
-                onPress={deleteAll}
+                onPress={handleDeleteAll}
               >
                 <Icon name="trash-can-outline" size={20} color="#EF4444" />
                 <Text className="ml-3 text-red-500">Delete all</Text>
